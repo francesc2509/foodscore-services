@@ -1,0 +1,30 @@
+{
+  "name": "foodscore-services",
+  "version": "1.0.0",
+  "description": "Foodscore RESTful Api",
+  "scripts": {
+    "watch-ts": "tsc -w",
+    "watch-node": "nodemon dist/server.js",
+    "watch": "concurrently -k -p \"[{name}]\" -n \"TypeScript, Node\" -c \"yello.bold, cyan.bold\" \"npm run watch-ts\" \"npm run watch-node\"",
+    "start": "npm run watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://francesc2509@bitbucket.org/francesc2509/foodscore-services.git"
+  },
+  "author": "Francesc Manarel Bueno",
+  "license": "MIT",
+  "homepage": "https://bitbucket.org/francesc2509/foodscore-services#readme",
+  "devDependencies": {
+    "@types/express": "^4.16.1",
+    "@types/mysql": "^2.15.5",
+    "concurrently": "^4.1.0",
+    "tslint": "^5.12.1",
+    "tslint-config-airbnb": "^5.11.1",
+    "typescript": "^3.2.4"
+  },
+  "dependencies": {
+    "mysql": "^2.16.0",
+    "express": "^4.16.4"
+  }
+}
