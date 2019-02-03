@@ -6,7 +6,7 @@ import { auth } from './auth/auth.controller';
 import { restaurant } from './restaurants/restaurant.controller';
 import { user } from './users/user.controller';
 
-import { BadRequest, NotFound } from './errors';
+import { BadRequest, NotFound, Unauthorized } from './errors';
 
 class App {
   private express: express.Express;
@@ -40,7 +40,6 @@ class App {
     res: express.Response,
     next: express.NextFunction,
   ) {
-    console.log('mundo!');
 
     if (res.headersSent) {
       return next(err);
@@ -52,6 +51,9 @@ class App {
         statusCode = 400;
         break;
       case err instanceof NotFound:
+        statusCode = 404;
+
+      case err instanceof Unauthorized:
         statusCode = 404;
         break;
     }

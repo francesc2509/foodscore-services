@@ -78,6 +78,7 @@ class RestaurantService {
           return <Comment> {
             id: row.id,
             user: <User>{
+              id: row.userId,
               avatar: row.avatar,
               name: row.name,
               email: row.email,
@@ -89,6 +90,21 @@ class RestaurantService {
             text: row.text,
           };
         });
+      }),
+    );
+  }
+
+  createComment(comment: any): Observable<Comment> {
+    return repository.createComment(comment).pipe(
+      switchMap((result: any) => {
+        return service.getComments({ 'com.id': result.insertId });
+      }),
+    ).pipe(
+      map((result: Comment[]) => {
+        if (!result || result.length < 1) {
+          throw new Error();
+        }
+        return result[0];
       }),
     );
   }

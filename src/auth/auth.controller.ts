@@ -3,7 +3,7 @@ import * as crypto from 'crypto';
 
 import { service as authService } from './auth.service';
 import { OnMount } from '../interfaces';
-import { BadRequest } from '../errors';
+import { BadRequest, Unauthorized } from '../errors';
 import { NextFunction } from 'connect';
 import { jwtMiddleware } from '../api/middlewares';
 
@@ -17,9 +17,9 @@ class AuthController implements OnMount {
 
   fsOnMount() {
     this.router.post('/login', this.jwt);
-    this.router.get('/validate', [jwtMiddleware, this.validate]);
     this.router.post('/google', this.google);
-    // this.router.get('/facebook', this.facebook);
+    this.router.post('/facebook', this.facebook);
+    this.router.get('/validate', [jwtMiddleware, this.validate]);
   }
 
   // register(req: Request, res: Response) {
@@ -39,11 +39,10 @@ class AuthController implements OnMount {
     let password = body.password || '';
 
     if (email.trim() === '' || password.trim() === '') {
-      throw new BadRequest('Bad request!');
+      throw new BadRequest('Email and password are mandatory');
     }
 
     password = crypto.createHash('sha256').update(body.password).digest('base64');
-    console.log('dfsdfds');
     authService.jwt({ email, password }).subscribe(
       data => res.send(data),
       (err) => {
@@ -54,8 +53,8 @@ class AuthController implements OnMount {
 
   google(req: Request, res: Response, next: NextFunction) {
     const token = req.body.token || '';
-    const lat = req.body.lat || '';
-    const lng = req.body.lng || '';
+    const lat = req.body.lat;
+    const lng = req.body.lng;
 
     if (!token) {
       throw new BadRequest();
@@ -69,17 +68,30 @@ class AuthController implements OnMount {
     );
   }
 
-  // facebook(req: Request, res: Response) {
-  //   try {
-  //     return authService.facebook();
-  //   } catch (e) {
-  //     // throw new UnauthorizedException('Login failed');
-  //     throw new Error();
-  //   }
-  // }
+  facebook(req: Request, res: Response, next: NextFunction) {
+    try {
+      const token = req.body.token || '';
+      const lat = req.body.lat || 0;
+      const lng = req.body.lng || 0;
+
+      if (!token) {
+        throw new BadRequest();
+      }
+
+      return authService.facebook({ token, lat, lng }).subscribe(
+        (data) => {
+          res.json(data);
+        },
+        (err) => {
+          next(err);
+        },
+      );
+    } catch (e) {
+      throw new Unauthorized('Login failed');
+    }
+  }
 
   validate(req: Request, res: Response, next: NextFunction) {
-    console.log('Hola');
     res.send({ ok: true });
   }
 }

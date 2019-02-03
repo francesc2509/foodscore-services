@@ -3,7 +3,7 @@ import { connection } from './db.config';
 import { Observable, of } from 'rxjs';
 
 class DB {
-  exec(query: any, params: any[]|any = []): Observable<any> {
+  protected exec(query: any, params: any[]|any = []): Observable<any> {
     return Observable.create((observer: any) => {
       connection.query(query, params, (err, result) => {
         if (err) {
@@ -18,7 +18,7 @@ class DB {
     });
   }
 
-  select(query: string, params: any = undefined) {
+  protected select(query: string, params: any = undefined) {
     let where = '';
     const values = <any[]>[];
     if (params) {
@@ -39,7 +39,7 @@ class DB {
     return this.exec(`${query}${where}`, values);
   }
 
-  insert(tableName: string, params: any) {
+  protected insert(tableName: string, params: any) {
     const query = `INSERT INTO \`${tableName}\` SET ?`;
     return this.exec(`${query}`, params);
   }

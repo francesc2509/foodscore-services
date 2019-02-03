@@ -29,7 +29,6 @@ class App {
         return this.express;
     }
     errorHandler(err, req, res, next) {
-        console.log('mundo!');
         if (res.headersSent) {
             return next(err);
         }
@@ -39,6 +38,8 @@ class App {
                 statusCode = 400;
                 break;
             case err instanceof errors_1.NotFound:
+                statusCode = 404;
+            case err instanceof errors_1.Unauthorized:
                 statusCode = 404;
                 break;
         }

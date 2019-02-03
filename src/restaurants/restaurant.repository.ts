@@ -38,6 +38,10 @@ class RestaurantRepository extends DB {
 
     return super.select(query, params);
   }
+
+  createComment(comment: any): Observable<any> {
+    return super.insert('comment', comment);
+  }
 }
 
 const repository = new RestaurantRepository();

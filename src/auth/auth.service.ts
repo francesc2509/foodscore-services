@@ -1,13 +1,18 @@
 import * as jwt from 'jsonwebtoken';
+import * as request from 'request-promise';
+
 import { OAuth2Client } from 'google-auth-library';
-import { service as userService } from '../users/user.service';
-import { repository as userRepository } from '../users/user.repository';
-import { User } from '../entities/user.model';
-import { map, catchError, switchMap } from 'rxjs/operators';
+
 import { Observable, of, from } from 'rxjs';
+import { map, catchError, switchMap } from 'rxjs/operators';
+
 import { BadRequest, NotFound, Unauthorized } from '../errors';
 import { TokenRequest, LoginRequest } from './model';
 import { imageService } from '../commons';
+
+import { service as userService } from '../users/user.service';
+import { repository as userRepository, repository } from '../users/user.repository';
+import { User } from '../entities/user.model';
 
 interface JwtPayload {
   id: number;
@@ -88,47 +93,65 @@ class AuthService {
     );
   }
 
-  // facebook(tokenDto: LoginTokenDto) {
-  //   const options = {
-  //     method: 'GET',
-  //     uri: 'https://graph.facebook.com/me',
-  //     qs: {
-  //       access_token: tokenDto.token,
-  //       fields: 'id,name,email',
-  //     },
-  //     json: true,
-  //   };
-  //   const respUser = await request(options);
+  facebook(tokenDto: TokenRequest): Observable<{expiresIn: string, accessToken: string}> {
+    const options = {
+      method: 'GET',
+      uri: 'https://graph.facebook.com/me',
+      qs: {
+        access_token: tokenDto.token,
+        fields: 'id,name,email',
+      },
+      json: true,
+    };
 
-  //   let user: DeepPartial<User> = await this.userService.getUserbyEmail(respUser.email);
+    return from(request(options)).pipe(
+      switchMap((respUser) => {
+        return userService.getByEmail(respUser.email).pipe(
+          switchMap((user) => {
+            if (!user) {
+              const optionsImg = {
+                method: 'GET',
+                uri: 'https://graph.facebook.com/me/picture',
+                qs: {
+                  access_token: tokenDto.token,
+                  type: 'large',
+                },
+              };
 
-  //   if (!user) {
-  //     const optionsImg = {
-  //       method: 'GET',
-  //       uri: 'https://graph.facebook.com/me/picture',
-  //       qs: {
-  //         access_token: tokenDto.token,
-  //         type: 'large',
-  //       },
-  //     };
-  //     const respImg = request(optionsImg);
-  //     const avatar = await this.imageService.downloadImage('users', respImg.url);
-  //     user = {
-  //       email: respUser.email,
-  //       name: respUser.name,
-  //       avatar,
-  //       lat: tokenDto.lat ? tokenDto.lat : 0,
-  //       lng: tokenDto.lng ? tokenDto.lng : 0,
-  //     };
-  //     user = await this.userRepo.save(user);
-  //   } else if (tokenDto.lat && tokenDto.lng) {
-  //     user.lat = tokenDto.lat;
-  //     user.lng = tokenDto.lng;
-  //     await this.userRepo.save(user);
-  //   }
+              return of(<any>request(optionsImg)).pipe(
+                switchMap((respImg) => {
+                  console.log(respImg.url.href);
+                  return imageService.downloadImage('users', respImg.url.href);
+                }),
+              ).pipe(
+                switchMap((avatar) => {
+                  const newUser = <User> {
+                    avatar,
+                    email: respUser.email,
+                    name: respUser.name,
+                    lat: tokenDto.lat || 0,
+                    lng: tokenDto.lng || 0,
+                  };
+                  return repository.save(newUser);
+                }),
+              ).pipe(
+                map((data) => {
+                  return this.createToken(data);
+                }),
+              );
+            }
 
-  //   return this.createToken(user as User);
-  // }
+            // user.lat = tokenDto.lat;
+            // user.lng = tokenDto.lng;
+            // this.userRepo.save(user);
+
+            // return this.createToken(newUser as User);
+            return of(this.createToken(user));
+          }),
+        );
+      }),
+    );
+  }
 
   validate(token: string) {
     try {

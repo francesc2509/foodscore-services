@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as http from 'http';
 import * as https from 'https';
 import * as path from 'path';
 import { Observable } from 'rxjs';
@@ -31,18 +32,28 @@ class ImageService {
         fs.mkdirSync('img/users');
       }
 
-      https.get(url, (response) => {
-        const file = fs.createWriteStream(filePath);
+      this.request(url, filePath, observer);
+    });
+  }
 
-        response.pipe(file);
-        file.on('finish', () => {
-          file.end();  // close() is async, call cb after close completes.
-          observer.next(filePath);
-        });
-      }).on('error', (err) => { // Handle errors
-        fs.unlinkSync(filePath); // Delete the file async. (But we don't check the result)
-        observer.error(err);
+  request(url: string, filePath: string, observer: any) {
+    const redirectCodes = [301, 302];
+    https.get(url, (response) => {
+      if (redirectCodes.find(code => code === response.statusCode)) {
+        return this.request(response.headers['location'], filePath, observer);
+      }
+      const file = fs.createWriteStream(filePath);
+
+      response.pipe(file);
+      file.on('finish', () => {
+        file.end();  // close() is async, call cb after close completes.
+        observer.next(filePath);
       });
+    }).on('error', (err) => { // Handle errors
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath); // Delete the file async. (But we don't check the result)
+      }
+      observer.error(err);
     });
   }
 }

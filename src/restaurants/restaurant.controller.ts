@@ -3,7 +3,8 @@ import { OnMount } from '../interfaces';
 import { service }  from './restaurant.service';
 import { jwtMiddleware } from '../api/middlewares';
 import { NextFunction } from 'connect';
-import { BadRequest } from '../errors';
+import { BadRequest, NotFound } from '../errors';
+import { Comment } from '../entities';
 
 class RestaurantController implements OnMount {
   public router: Router;
@@ -20,6 +21,7 @@ class RestaurantController implements OnMount {
     this.router.get('/user/:id', this.getByUser);
     this.router.get('/:id', this.getById);
     this.router.get('/:id/comments', this.getComments);
+    this.router.post('/:id/comments', this.createComment);
   }
 
   getAll(req: Request, res: Response, next: NextFunction) {
@@ -79,6 +81,43 @@ class RestaurantController implements OnMount {
     return service.getComments({ restaurantId: id }).subscribe(
       comments => res.json({ comments }),
       err => next(err),
+    );
+  }
+
+  createComment(req: Request, res: Response, next: NextFunction) {
+    const text = <string>req.body.text || '';
+    const stars = Number(req.body.stars);
+    const restaurantId = Number(req.params.id);
+
+    if (
+      !restaurantId
+      || isNaN(restaurantId)
+      || !Number.isInteger(restaurantId)
+      || restaurantId < 1
+    ) {
+      throw new NotFound('Restaurant does not exists');
+    }
+
+    const errors = [];
+    if (!text.trim()) {
+      errors.push('Text cannot be empty');
+    }
+
+    if (isNaN(stars) || (stars < 0 || stars > 5)) {
+      errors.push('Rating must be in the interval [0, 5]');
+    }
+    if (errors.length > 0) {
+      throw new BadRequest(errors.join(', '));
+    }
+
+    service.createComment(
+      { restaurantId, stars, text, userId: req.user.id },
+    ).subscribe(
+      comment => res.json({ comment }),
+      (err) => {
+        console.log(err+ 'fsfnlsdfnlsdf');
+        next(err);
+      },
     );
   }
 }
