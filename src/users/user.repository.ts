@@ -21,6 +21,10 @@ class UserRepository extends DB {
       }),
     );
   }
+
+  modify(params: any, filters: any) {
+    return super.update('user', params, filters);
+  }
 }
 
 const repository = new UserRepository();

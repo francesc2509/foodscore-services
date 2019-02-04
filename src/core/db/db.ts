@@ -43,6 +43,29 @@ class DB {
     const query = `INSERT INTO \`${tableName}\` SET ?`;
     return this.exec(`${query}`, params);
   }
+
+  protected update(tableName: string, params: any, filters: any) {
+    const query = `UPDATE ${tableName} SET ?`;
+
+    let where = '';
+    const values = <any[]>[];
+    if (filters) {
+      Object.keys(filters).forEach((key, i) => {
+        const prop = filters[key];
+
+        if (i === 0) {
+          where += ' WHERE ';
+        } else {
+          where += ' AND ';
+        }
+
+        where += `${key} = ?`;
+        values.push(prop);
+      });
+    }
+
+    return this.exec(`${query}${where}`, [params, ...values]);
+  }
 }
 
 export { DB };

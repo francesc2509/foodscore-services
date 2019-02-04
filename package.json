@@ -31,6 +31,7 @@
   "dependencies": {
     "body-parser": "^1.18.3",
     "cors": "^2.8.5",
+    "email-validator": "^2.0.4",
     "express": "^4.16.4",
     "google-auth-library": "^3.0.1",
     "image-downloader": "^3.4.2",

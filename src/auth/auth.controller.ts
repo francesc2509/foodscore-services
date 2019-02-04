@@ -6,6 +6,7 @@ import { OnMount } from '../interfaces';
 import { BadRequest, Unauthorized } from '../errors';
 import { NextFunction } from 'connect';
 import { jwtMiddleware } from '../api/middlewares';
+import { RegisterRequest } from './model';
 
 class AuthController implements OnMount {
   public router: Router;
@@ -19,18 +20,33 @@ class AuthController implements OnMount {
     this.router.post('/login', this.jwt);
     this.router.post('/google', this.google);
     this.router.post('/facebook', this.facebook);
+    this.router.post('/register', this.register);
     this.router.get('/validate', [jwtMiddleware, this.validate]);
   }
 
-  // register(req: Request, res: Response) {
-  //   try {
-  //     const user = authService.registerUser();
-  //     // res.status(HttpStatus.CREATED).send(user);
-  //   } catch (error) {
-  //     // throw new BadRequestException(error.message);
-  //     throw new Error();
-  //   }
-  // }
+  register(req: Request, res: Response, next: NextFunction) {
+    const name = req.body.name || '';
+    const avatar = req.body.avatar;
+    const email = req.body.email || '';
+    const password = req.body.password || '';
+    const lat = Number(req.body.lat);
+    const lng = Number(req.body.lng);
+
+    const newUser = new RegisterRequest(name, avatar, email, password, lat, lng);
+
+    const errors = newUser.isValid();
+    if (errors && errors.length > 0) {
+      throw new BadRequest(errors.join(', '));
+    }
+    newUser.password = crypto.createHash('sha256').update(password).digest('base64');
+
+    authService.register(newUser).subscribe(
+      (user) => {
+        res.json({ user });
+      },
+      err => next(err),
+    );
+  }
 
   jwt(req: Request, res: Response, next: NextFunction) {
     const body = req.body;

@@ -1,11 +1,12 @@
 import { Request } from 'express';
 
 import { repository } from './user.repository';
-import { map } from 'rxjs/operators';
-import { Observable, of } from 'rxjs';
+import { map, switchMap } from 'rxjs/operators';
+import { Observable, of, ObservableInput } from 'rxjs';
 import { User } from '../entities/user.model';
 import { NotFound } from '../errors';
 import { imageService } from '../commons';
+import { UpdateAvatarRequest } from './model';
 
 class UserService {
   constructor() {}
@@ -53,20 +54,24 @@ class UserService {
     return of(false);
   }
 
-  updateUserInfo(id: number, user: any): Observable<void> {
-    // await this.userRepo.update(id, user);
-    return of();
+  update(user: User, id: number): Observable<number> {
+    return repository.modify(user, { id }).pipe(
+      map((result) => {
+        return result.affectedRows;
+      }),
+    );
   }
 
-  updatePassword(id: number, pass: any): Observable<void> {
-    // await this.userRepo.update(id, pass);
-    return of();
-  }
-
-  updateAvatar(id: number, avatar: any): Promise<string> {
-    avatar.avatar = imageService.saveImage('users', avatar.avatar);
-    // await this.userRepo.update(id, avatar);
-    return avatar.avatar;
+  updateAvatar(user: UpdateAvatarRequest, id: number): Observable<string> {
+    return imageService.saveImage('users', user.avatar).pipe(
+      switchMap((avatar) => {
+        return this.update({ avatar }, id).pipe(
+          map(() => {
+            return avatar;
+          }),
+        );
+      }),
+    );
   }
 }
 

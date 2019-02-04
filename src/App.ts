@@ -18,7 +18,7 @@ class App {
     this.express.set('port', 3000);
     this.express.use(cors({ credentials: true, origin: true }));
     this.express.use(express.static(`${__dirname}/..`));
-    this.express.use(bodyParser.json());
+    this.express.use(bodyParser.json({ limit: '50mb' }));
     this.mountRoutes();
     this.express.use(this.errorHandler);
   }
@@ -54,7 +54,7 @@ class App {
         statusCode = 404;
 
       case err instanceof Unauthorized:
-        statusCode = 404;
+        statusCode = 401;
         break;
     }
 

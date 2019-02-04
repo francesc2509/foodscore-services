@@ -7,7 +7,7 @@ import { Observable, of, from } from 'rxjs';
 import { map, catchError, switchMap } from 'rxjs/operators';
 
 import { BadRequest, NotFound, Unauthorized } from '../errors';
-import { TokenRequest, LoginRequest } from './model';
+import { TokenRequest, LoginRequest, RegisterRequest } from './model';
 import { imageService } from '../commons';
 
 import { service as userService } from '../users/user.service';
@@ -34,18 +34,24 @@ class AuthService {
     };
   }
 
-  // register(userDto: RegisterUserDto) {
-  //   userDto.avatar = await this.imageService.saveImage('users', userDto.avatar);
-  //   await this.userRepo.insert(userDto);
-  //   return userDto;
-  // }
+  register(userDto: RegisterRequest) {
+    return imageService.saveImage('users', userDto.avatar).pipe(
+      catchError((err) => {
+        return of('img/profile.jpg');
+      }),
+    ).pipe(
+      switchMap((filePath) => {
+        userDto.avatar = filePath;
+        return userRepository.save(userDto);
+      }),
+    );
+  }
 
   jwt(user: LoginRequest): Observable<any> {
     return userService.findOneOrFail(
       { email: user.email, password: user.password },
     ).pipe(
       map((result) => {
-        console.log('fsdf');
         return this.createToken(result);
       }),
     );
@@ -65,16 +71,18 @@ class AuthService {
 
         return userService.getByEmail(email).pipe(
           switchMap((data) => {
+            const lat = tokenDto.lat ? tokenDto.lat : 0;
+            const lng = tokenDto.lng ? tokenDto.lng : 0;
             if (!data) {
               return imageService
                 .downloadImage('users', payload.picture).pipe(
                   switchMap((avatar) => {
-                    const user = {
+                    const user = <RegisterRequest>{
                       email,
                       avatar,
+                      lat,
+                      lng,
                       name: payload.name,
-                      lat: tokenDto.lat ? tokenDto.lat : 0,
-                      lng: tokenDto.lng ? tokenDto.lng : 0,
                     };
 
                     return userRepository.save(user).pipe(
@@ -86,7 +94,12 @@ class AuthService {
                   }),
                 );
             }
-            return of(this.createToken({ id: data.id }));
+
+            return userService.update({ lat, lng }, data.id).pipe(
+              map((affectedRows) => {
+                return this.createToken({ id: data.id });
+              }),
+            );
           }),
         );
       }),
@@ -108,6 +121,9 @@ class AuthService {
       switchMap((respUser) => {
         return userService.getByEmail(respUser.email).pipe(
           switchMap((user) => {
+            const lat = tokenDto.lat || 0;
+            const lng = tokenDto.lng || 0;
+
             if (!user) {
               const optionsImg = {
                 method: 'GET',
@@ -125,12 +141,12 @@ class AuthService {
                 }),
               ).pipe(
                 switchMap((avatar) => {
-                  const newUser = <User> {
+                  const newUser = <RegisterRequest> {
                     avatar,
+                    lat,
+                    lng,
                     email: respUser.email,
                     name: respUser.name,
-                    lat: tokenDto.lat || 0,
-                    lng: tokenDto.lng || 0,
                   };
                   return repository.save(newUser);
                 }),
@@ -141,12 +157,11 @@ class AuthService {
               );
             }
 
-            // user.lat = tokenDto.lat;
-            // user.lng = tokenDto.lng;
-            // this.userRepo.save(user);
-
-            // return this.createToken(newUser as User);
-            return of(this.createToken(user));
+            return userService.update({ lat, lng }, user.id).pipe(
+              map((affectedRows) => {
+                return this.createToken({ id: user.id });
+              }),
+            );
           }),
         );
       }),
