@@ -5,6 +5,7 @@ import { jwtMiddleware } from '../api/middlewares';
 import { NextFunction } from 'connect';
 import { BadRequest, NotFound } from '../errors';
 import { Comment } from '../entities';
+import { AddCommentRequest, UpsertRestaurantRequest } from './model';
 
 class RestaurantController implements OnMount {
   public router: Router;
@@ -21,7 +22,12 @@ class RestaurantController implements OnMount {
     this.router.get('/user/:id', this.getByUser);
     this.router.get('/:id', this.getById);
     this.router.get('/:id/comments', this.getComments);
+
+    this.router.post('/', this.createRestaurant);
     this.router.post('/:id/comments', this.createComment);
+
+    this.router.put('/:id', this.editRestaurant);
+    this.router.delete('/:id', this.deleteRestaurant);
   }
 
   getAll(req: Request, res: Response, next: NextFunction) {
@@ -65,9 +71,77 @@ class RestaurantController implements OnMount {
         res.json({ restaurant });
       },
       (err) => {
-        console.log(err);
-        res.send(err);
+        next(err);
       },
+    );
+  }
+
+  createRestaurant(req: Request, res: Response, next: NextFunction) {
+    const rest = new UpsertRestaurantRequest(
+      req.body.name,
+      req.body.description,
+      req.body.cuisine,
+      req.body.phone,
+      req.body.daysOpen,
+      req.user.id,
+      req.body.lat,
+      req.body.lng,
+      req.body.address,
+      req.body.image,
+    );
+
+    const errors = rest.isValid();
+    if (errors && errors.length > 0) {
+      throw new BadRequest(errors.join(', '));
+    }
+
+    return service.createRestaurant(rest, req.user).subscribe(
+      restaurant => res.json({ restaurant }),
+      err => next(err),
+    );
+  }
+
+  editRestaurant(req: Request, res: Response, next: NextFunction) {
+    console.log('dgkfkgkfdkñgkfdñgñkfk');
+    const id = Number(req.params.id);
+    if (!id || isNaN(id) || !Number.isInteger(id) || id < 1) {
+      throw new BadRequest();
+    }
+
+    const rest = new UpsertRestaurantRequest(
+      req.body.name,
+      req.body.description,
+      req.body.cuisine,
+      req.body.phone,
+      req.body.daysOpen,
+      req.user.id,
+      req.body.lat,
+      req.body.lng,
+      req.body.address,
+      req.body.image,
+    );
+
+    const errors = rest.isValid([], false);
+    if (errors && errors.length > 0) {
+      throw new BadRequest(errors.join(', '));
+    }
+
+    return service.editRestaurant(rest, id, req.user).subscribe(
+      restaurant => res.json(restaurant),
+      err => next(err),
+    );
+  }
+
+  deleteRestaurant(req: Request, res: Response, next: NextFunction) {
+    const id = Number(req.params.id);
+
+    if (!id || isNaN(id) || !Number.isInteger(id) || id < 1) {
+      throw new BadRequest();
+    }
+
+    return service.deleteRestaurant(id, req.user).subscribe(
+      () => res.json({ id }),
+      err => next(err),
     );
   }
 
@@ -89,33 +163,17 @@ class RestaurantController implements OnMount {
     const stars = Number(req.body.stars);
     const restaurantId = Number(req.params.id);
 
-    if (
-      !restaurantId
-      || isNaN(restaurantId)
-      || !Number.isInteger(restaurantId)
-      || restaurantId < 1
-    ) {
-      throw new NotFound('Restaurant does not exists');
-    }
-
-    const errors = [];
-    if (!text.trim()) {
-      errors.push('Text cannot be empty');
-    }
-
-    if (isNaN(stars) || (stars < 0 || stars > 5)) {
-      errors.push('Rating must be in the interval [0, 5]');
-    }
+    const comment = new AddCommentRequest(text, stars, restaurantId, req.user.id);
+    const errors = comment.isValid();
     if (errors.length > 0) {
       throw new BadRequest(errors.join(', '));
     }
 
     service.createComment(
-      { restaurantId, stars, text, userId: req.user.id },
+      comment,
     ).subscribe(
       comment => res.json({ comment }),
       (err) => {
-        console.log(err+ 'fsfnlsdfnlsdf');
         next(err);
       },
     );

@@ -47,12 +47,21 @@ class AuthService {
     );
   }
 
-  jwt(user: LoginRequest): Observable<any> {
+  jwt(user: LoginRequest) {
+    const lat = user.lat;
+    const lng = user.lng;
+
+    console.log(user);
+
     return userService.findOneOrFail(
       { email: user.email, password: user.password },
     ).pipe(
-      map((result) => {
-        return this.createToken(result);
+      switchMap((result) => {
+        return userService.update({ lat, lng }, result.id).pipe(
+          map(() => {
+            return this.createToken({ id: result.id });
+          }),
+        );
       }),
     );
   }
@@ -61,6 +70,8 @@ class AuthService {
     const client = new OAuth2Client(
       '3493852405-i42aed10i54blfjpt7l42i5rtilkpl0j.apps.googleusercontent.com',
     );
+
+    console.log(tokenDto);
     return from(client.verifyIdToken({
       idToken: tokenDto.token,
       audience: '3493852405-i42aed10i54blfjpt7l42i5rtilkpl0j.apps.googleusercontent.com',
@@ -68,6 +79,8 @@ class AuthService {
       switchMap((ticket) => {
         const payload = ticket.getPayload();
         const email = payload.email;
+
+        console.log(ticket);
 
         return userService.getByEmail(email).pipe(
           switchMap((data) => {

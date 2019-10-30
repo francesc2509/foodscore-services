@@ -20,3 +20,7 @@ export const jwtMiddleware = (req: Request, res: Response, next: NextFunction) =
     (err) => { next(err); },
   );
 };
+
+export const notFoundMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  next(new NotFound());
+};

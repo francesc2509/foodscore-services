@@ -39,6 +39,7 @@ class ImageService {
         if (err) {
           return reject(err);
         }
+        console.log(filePath);
         resolve(filePath);
       });
       // const file = fs.createWriteStream(filePath);
@@ -85,7 +86,7 @@ class ImageService {
     );
   }
 
-  request(url: string, observer: any) {
+  private request(url: string, observer: any) {
     const redirectCodes = [301, 302];
     https.get(url, (response) => {
       if (redirectCodes.find(code => code === response.statusCode)) {

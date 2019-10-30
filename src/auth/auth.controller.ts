@@ -7,6 +7,7 @@ import { BadRequest, Unauthorized } from '../errors';
 import { NextFunction } from 'connect';
 import { jwtMiddleware } from '../api/middlewares';
 import { RegisterRequest } from './model';
+import { Validators } from '../utils/validators';
 
 class AuthController implements OnMount {
   public router: Router;
@@ -53,13 +54,29 @@ class AuthController implements OnMount {
 
     const email = body.email || '';
     let password = body.password || '';
+    const lat = Number(body.lat);
+    const lng = Number(body.lng);
+
+    const errors = [];
 
     if (email.trim() === '' || password.trim() === '') {
-      throw new BadRequest('Email and password are mandatory');
+      errors.push('Email and password are mandatory');
+    }
+
+    if (!Validators.isLatitudeValid(lat)) {
+      errors.push('Latitude is not valid');
+    }
+
+    if (!Validators.isLongitudeValid(lng)) {
+      errors.push('Longitude is not valid');
+    }
+
+    if (errors.length > 0) {
+      throw new BadRequest(errors.join(','));
     }
 
     password = crypto.createHash('sha256').update(body.password).digest('base64');
-    authService.jwt({ email, password }).subscribe(
+    authService.jwt({ email, password, lat, lng }).subscribe(
       data => res.send(data),
       (err) => {
         next(err);
@@ -79,6 +96,7 @@ class AuthController implements OnMount {
     authService.google({ token, lat, lng }).subscribe(
       data => res.send(data),
       (err) => {
+        console.log(err);
         next(err);
       },
     );

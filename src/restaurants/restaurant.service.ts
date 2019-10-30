@@ -3,8 +3,10 @@ import { map, switchMap } from 'rxjs/operators';
 import { repository } from './restaurant.repository';
 import { service as userService } from '../users/user.service';
 import { Restaurant, User, Comment } from '../entities';
-import { NotFound } from '../errors';
+import { NotFound, Forbidden } from '../errors';
 import { Observable } from 'rxjs';
+import { UpsertRestaurantRequest } from './model';
+import { imageService } from '../commons';
 
 class RestaurantService {
   constructor() { }
@@ -38,35 +40,89 @@ class RestaurantService {
     return repository.findOneOrFail({ 'res.id': id }, me).pipe(
       switchMap((row) => {
         if (row) {
-          console.log(row);
-          return userService.findOneOrFail({ id: row.creatorId }).pipe(
-            switchMap((result) => {
-              return this.getComments({ restaurantId: id, userId: me.id }).pipe(
-                map((comments) => {
-                  console.log(comments);
-                  return <Restaurant>{
-                    id: row.id,
-                    address: row.address,
-                    daysOpen: row.daysOpen.split(','),
-                    cuisine: row.cuisine,
-                    description: row.description,
-                    stars: row.stars,
-                    image: row.image,
-                    lat: row.lat,
-                    lng: row.lng,
-                    distance: row.distance,
-                    name: row.name,
-                    phone: row.phone,
-                    mine: me.id === row.creatorId,
-                    commented: (comments && comments.length > 0),
-                    creator: result,
-                  };
+          return userService.findOneOrFail({ id: row.creatorId }, me).pipe(
+            map((result) => {
+              return <Restaurant>{
+                id: row.id,
+                address: row.address,
+                daysOpen: row.daysOpen.split(',').map((day: string) => Number(day)),
+                cuisine: row.cuisine.split(','),
+                description: row.description,
+                stars: row.stars,
+                image: row.image,
+                lat: row.lat,
+                lng: row.lng,
+                distance: row.distance,
+                name: row.name,
+                phone: row.phone,
+                mine: !me || me.id === row.creatorId,
+                commented: !!row.commentId,
+                creator: result,
+              };
+            }),
+          );
+        }
+        throw new NotFound();
+      }),
+    );
+  }
+
+  createRestaurant(restaurant: UpsertRestaurantRequest, me: User) {
+    console.log('asdas');
+    return imageService.saveImage('restaurants', restaurant.image).pipe(
+      switchMap((filePath) => {
+        restaurant.image = filePath;
+        return repository.createRestaurant(restaurant).pipe(
+          switchMap((result) => {
+            console.log(result);
+            return this.getById(result.insertId, me);
+          }),
+        );
+      }),
+    );
+  }
+
+  editRestaurant(restaurant: UpsertRestaurantRequest, id: number, me: User) {
+    return this.getById(id, me).pipe(
+      switchMap((r) => {
+        if (!r.mine) {
+          throw new Forbidden();
+        }
+
+        if (restaurant.image.indexOf('img/') > -1) {
+          restaurant.image = undefined;
+        }
+
+        if (restaurant.image) {
+          return imageService.saveImage('restaurants', restaurant.image).pipe(
+            switchMap((filePath) => {
+              restaurant.image = filePath;
+
+              return repository.editRestaurant(restaurant, id).pipe(
+                switchMap((result) => {
+                  return this.getById(id, me);
                 }),
               );
             }),
           );
         }
-        throw new NotFound();
+        return repository.editRestaurant(restaurant, id).pipe(
+          switchMap((result) => {
+            return this.getById(id, me);
+          }),
+        );
+      }),
+    );
+  }
+
+  deleteRestaurant(id: number, me: User) {
+    return this.getById(id, me).pipe(
+      switchMap((r: Restaurant) => {
+        if (!r.mine) {
+          throw new Forbidden();
+        }
+
+        return repository.deleteRestaurant(id).pipe(map(() => { return undefined; }));
       }),
     );
   }

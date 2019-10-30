@@ -3,11 +3,10 @@ import { connection } from './db.config';
 import { Observable, of } from 'rxjs';
 
 class DB {
-  protected exec(query: any, params: any[]|any = []): Observable<any> {
+  protected exec(query: any, params: any[] | any = []): Observable<any> {
     return Observable.create((observer: any) => {
       connection.query(query, params, (err, result) => {
         if (err) {
-          console.log(err);
           observer.error(err);
           return;
         }
@@ -18,12 +17,12 @@ class DB {
     });
   }
 
-  protected select(query: string, params: any = undefined) {
+  protected select(query: string, filters: any = undefined) {
     let where = '';
     const values = <any[]>[];
-    if (params) {
-      Object.keys(params).forEach((key, i) => {
-        const prop = params[key];
+    if (filters) {
+      Object.keys(filters).forEach((key, i) => {
+        const prop = filters[key];
 
         if (i === 0) {
           where += ' WHERE ';
@@ -41,7 +40,7 @@ class DB {
 
   protected insert(tableName: string, params: any) {
     const query = `INSERT INTO \`${tableName}\` SET ?`;
-    return this.exec(`${query}`, params);
+    return this.exec(`${query}`, this.getParams(params));
   }
 
   protected update(tableName: string, params: any, filters: any) {
@@ -64,7 +63,45 @@ class DB {
       });
     }
 
-    return this.exec(`${query}${where}`, [params, ...values]);
+    return this.exec(`${query}${where}`, [this.getParams(params), ...values]);
+  }
+
+  protected delete(tableName: string, filters: any) {
+    const query = `DELETE FROM ${tableName}`;
+
+    let where = '';
+    const values = <any[]>[];
+    if (filters) {
+      Object.keys(filters).forEach((key, i) => {
+        const prop = filters[key];
+
+        if (i === 0) {
+          where += ' WHERE ';
+        } else {
+          where += ' AND ';
+        }
+
+        where += `${key} = ?`;
+        values.push(prop);
+      });
+
+      return this.exec(`${query}${where}`, values);
+    }
+  }
+
+  private getParams(params: any) {
+    const o: any = {};
+    console.log(params);
+    if (params) {
+      Object.keys(params).forEach((key: string) => {
+        if (params[key] !== undefined) {
+          console.log(params[key]);
+          o[key] = params[key];
+        }
+      });
+    }
+    console.log(o);
+    return o;
   }
 }
 

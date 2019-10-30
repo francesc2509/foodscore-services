@@ -6,7 +6,8 @@ import { auth } from './auth/auth.controller';
 import { restaurant } from './restaurants/restaurant.controller';
 import { user } from './users/user.controller';
 
-import { BadRequest, NotFound, Unauthorized } from './errors';
+import { BadRequest, NotFound, Unauthorized, Forbidden } from './errors';
+import { notFoundMiddleware } from './api/middlewares';
 
 class App {
   private express: express.Express;
@@ -20,6 +21,7 @@ class App {
     this.express.use(express.static(`${__dirname}/..`));
     this.express.use(bodyParser.json({ limit: '50mb' }));
     this.mountRoutes();
+    this.express.use(notFoundMiddleware);
     this.express.use(this.errorHandler);
   }
 
@@ -52,9 +54,13 @@ class App {
         break;
       case err instanceof NotFound:
         statusCode = 404;
+        break;
 
       case err instanceof Unauthorized:
         statusCode = 401;
+        break;
+      case err instanceof Forbidden:
+        statusCode = 403;
         break;
     }
 

@@ -16,6 +16,7 @@ class UserService {
       map((data) => {
         if (data) {
           const result = data;
+          console.log(me);
           return <User>{
             avatar: result.avatar,
             email: result.email,

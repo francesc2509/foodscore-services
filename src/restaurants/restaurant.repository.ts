@@ -2,6 +2,7 @@ import { DB } from '../core/db/db';
 import { Observable } from 'rxjs';
 import { User } from '../entities/user.model';
 import { map } from 'rxjs/operators';
+import { UpsertRestaurantRequest } from './model';
 
 class RestaurantRepository extends DB {
   get(me: User, params = {}): Observable<any[]> {
@@ -16,13 +17,25 @@ class RestaurantRepository extends DB {
     const query = `SELECT res.*, com.id as commentId,
       haversine(res.lat, res.lng, ${me.lat}, ${me.lng}) as distance
       FROM \`restaurant\` res
-      LEFT JOIN comment com ON com.userId = ${me.id}`;
+      LEFT JOIN comment com ON res.id = COM.restaurantId AND com.userId = ${me.id}`;
 
     return super.select(query, params).pipe(
       map((result) => {
         return !result || result.length !== 1 ? undefined : result[0];
       }),
     );
+  }
+
+  createRestaurant(restaurant: UpsertRestaurantRequest): Observable<any> {
+    return super.insert('restaurant', restaurant);
+  }
+
+  editRestaurant(restaurant: UpsertRestaurantRequest, id: number): Observable<any> {
+    return super.update('restaurant', restaurant, { id });
+  }
+
+  deleteRestaurant(id: number): Observable<any> {
+    return super.delete('restaurant', { id });
   }
 
   getComments(params: any = {}): Observable<any[]> {
